@@ -8,13 +8,13 @@
       "source": "gitbook"
     },
     {
-      "title": "Company Information", 
+      "title": "Company Information",
       "file": "company-info.md",
       "source": "gitbook"
     },
     {
       "title": "Architecture",
-      "file": "architecture.md", 
+      "file": "architecture.md",
       "source": "shared"
     },
     {
@@ -30,6 +30,11 @@
     {
       "title": "Tutorials",
       "file": "tutorials.md",
+      "source": "gitbook"
+    },
+    {
+      "title": "Indicators",
+      "file": "indicators.md",
       "source": "gitbook"
     }
   ],

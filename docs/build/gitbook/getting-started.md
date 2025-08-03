@@ -44,6 +44,54 @@ API_PORT=3000
 Never commit your `.env` file to version control. Make sure it's listed in your `.gitignore` file.
 {% endhint %}
 
+## Troubleshooting
+
+### Common Issues
+
+#### Database Connection Issues
+
+**Problem**: `ECONNREFUSED` error when starting the application
+
+**Solution**: 
+1. Ensure PostgreSQL is running: `brew services start postgresql` (macOS) or `sudo systemctl start postgresql` (Linux)
+2. Verify your database exists: `psql -U username -d your_db`
+3. Check your `DATABASE_URL` in `.env` file
+
+#### Port Already in Use
+
+**Problem**: `EADDRINUSE` error on startup
+
+**Solution**:
+```bash
+# Find the process using port 3000
+lsof -ti:3000
+# Kill the process
+kill -9 <PID>
+```
+
+#### Dependencies Installation Fails
+
+**Problem**: `npm install` fails with permission errors
+
+**Solution**:
+- Use Node Version Manager (nvm) to manage Node.js versions
+- Avoid using `sudo npm install`
+- Clear npm cache: `npm cache clean --force`
+
+#### Environment Variables Not Loading
+
+**Problem**: Application can't find environment variables
+
+**Solution**:
+1. Ensure `.env` file is in the project root
+2. Check file permissions: `chmod 644 .env`
+3. Restart your development server
+
+{% hint style="info" %}
+**Still Having Issues?**
+Check our [FAQ section](faq.md) or open an issue on our [GitHub repository](https://github.com/your-org/your-project/issues).
+{% endhint %}
+
 ## Next Steps
 
 - Read our [API Guidelines](api-guidelines.md)

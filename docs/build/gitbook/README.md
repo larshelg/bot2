@@ -10,6 +10,7 @@ This documentation covers everything you need to know about our project.
 - [API Guidelines](api-guidelines.md)
 - [Deployment Guide](deployment.md)
 - [Tutorials](tutorials.md)
+- [Indicators](indicators.md)
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the core API development standards that all team members must follow.
+This document outlines the core API development standards that all team members must followed.
 
 ## Authentication
 
