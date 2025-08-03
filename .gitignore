@@ -1,7 +1,5 @@
 # Documentation System .gitignore
 
-# Build outputs (generated files)
-docs/build/
 
 # Node.js
 node_modules/
