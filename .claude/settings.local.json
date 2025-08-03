@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__markdown-rules-mcp__get_relevant_docs",
+      "mcp__markdown-rules-mcp__reindex_docs"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "markdown-rules-mcp"
+  ]
+}

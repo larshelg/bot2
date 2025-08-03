@@ -1,0 +1,26 @@
+{
+  "name": "docs-system",
+  "version": "1.0.0",
+  "description": "Dual-purpose documentation system for GitBook and MCP",
+  "scripts": {
+    "build": "./scripts/build-docs.sh",
+    "build:gitbook": "node scripts/build-gitbook.js",
+    "build:mcp": "node scripts/build-mcp.js",
+    "clean": "rm -rf docs/build/*",
+    "watch": "nodemon --watch docs/source --exec 'npm run build'",
+    "watch:mcp": "node scripts/file-watcher.js",
+    "mcp:hook": "./scripts/buildhook.sh",
+    "mcp:force-rebuild": "./scripts/mcp-build-hook.sh --force"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "fs-extra": "^11.1.1",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["documentation", "gitbook", "mcp", "markdown"],
+  "author": "Your Name",
+  "license": "MIT"
+}

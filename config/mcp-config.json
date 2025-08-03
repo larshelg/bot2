@@ -1,0 +1,31 @@
+{
+  "frontmatterTemplates": {
+    "shared/api-guidelines.md": {
+      "description": "API development guidelines and standards",
+      "alwaysApply": true,
+      "globs": ["**/*.ts", "**/*.js", "**/api/**"]
+    },
+    "shared/deployment.md": {
+      "description": "Deployment procedures and configurations",
+      "globs": ["**/deploy/**", "**/*.yml", "**/*.yaml"]
+    },
+    "shared/architecture.md": {
+      "description": "System architecture and design decisions",
+      "alwaysApply": true
+    },
+    "mcp/code-review.md": {
+      "description": "Code review checklist and standards",
+      "globs": ["**/*.ts", "**/*.js", "**/*.tsx", "**/*.jsx"]
+    },
+    "mcp/debug-checklist.md": {
+      "description": "Debugging procedures and troubleshooting steps"
+    },
+    "mcp/llm-instructions.md": {
+      "description": "Instructions for LLM behavior and responses",
+      "alwaysApply": true
+    }
+  },
+  "defaultFrontmatter": {
+    "description": "General project documentation"
+  }
+}

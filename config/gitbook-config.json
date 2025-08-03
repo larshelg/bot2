@@ -1,0 +1,40 @@
+{
+  "title": "Project Documentation",
+  "description": "Complete documentation for our project",
+  "structure": [
+    {
+      "title": "Getting Started",
+      "file": "getting-started.md",
+      "source": "gitbook"
+    },
+    {
+      "title": "Company Information", 
+      "file": "company-info.md",
+      "source": "gitbook"
+    },
+    {
+      "title": "Architecture",
+      "file": "architecture.md", 
+      "source": "shared"
+    },
+    {
+      "title": "API Guidelines",
+      "file": "api-guidelines.md",
+      "source": "shared"
+    },
+    {
+      "title": "Deployment Guide",
+      "file": "deployment.md",
+      "source": "shared"
+    },
+    {
+      "title": "Tutorials",
+      "file": "tutorials.md",
+      "source": "gitbook"
+    }
+  ],
+  "readme": {
+    "title": "Welcome to Our Documentation",
+    "content": "This documentation covers everything you need to know about our project."
+  }
+}

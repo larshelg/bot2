@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "markdown-rules-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@valstro/markdown-rules-mcp@latest"
+      ],
+      "env": {
+        "PROJECT_ROOT": "/Users/larshelg/claude/bot2",
+        "MARKDOWN_INCLUDE": "./docs/build/mcp/**/*.md",
+        "HOIST_CONTEXT": "true"
+      }
+    }
+  }
+}
