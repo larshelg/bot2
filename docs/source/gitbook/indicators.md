@@ -342,25 +342,59 @@ FROM rsi_components;
 ## Best Practices
 
 {% hint style="success" %}
-**Performance Optimization**
-- Use TimescaleDB for timeframes 30 minutes and above
-- Use Flink for timeframes 15 minutes and below
-- Implement proper state management in Flink applications
-- Monitor CDC lag and adjust buffer sizes accordingly
+**Indicator Selection Strategy**
+- Use TimescaleDB for all simple indicators (SMA, EMA, RSI, MACD) across 1m-1h timeframes
+- Use Flink for complex indicators requiring advanced calculations (ATR, Bollinger Bands, custom patterns)
+- Leverage SQL window functions for efficient moving averages and momentum indicators
+- Pre-compute indicators in TimescaleDB for faster backtesting queries
 {% endhint %}
 
 {% hint style="warning" %}
 **Resource Management**
-- Set appropriate parallelism for Flink jobs based on data volume
-- Configure TimescaleDB continuous aggregate refresh policies carefully
-- Implement proper error handling and recovery mechanisms
-- Monitor memory usage in both systems
+- Set 1-second refresh policies for TimescaleDB continuous aggregates on trading timeframes
+- Configure appropriate parallelism for Flink jobs based on symbol count and complexity
+- Monitor TimescaleDB storage usage as continuous aggregates create additional tables
+- Implement proper state management and checkpointing in Flink for complex indicators
 {% endhint %}
 
 {% hint style="info" %}
-**Monitoring and Alerting**
-- Track indicator calculation latency across both systems
-- Monitor CDC replication lag
-- Set up alerts for failed continuous aggregate refreshes
-- Implement health checks for all components
+**Performance Optimization**
+- Create indexes on symbol and time columns for faster continuous aggregate refreshes
+- Use TimescaleDB compression for historical indicator data beyond active trading periods
+- Implement proper watermarks and late data handling in Flink streams
+- Consider using TimescaleDB real-time aggregates for frequently queried indicator combinations
 {% endhint %}
+
+### Decision Matrix: When to Use Each System
+
+| Indicator Characteristic | TimescaleDB | Apache Flink |
+|-------------------------|-------------|---------------|
+| **Simple mathematical operations** | ✅ Preferred | ❌ Overkill |
+| **SQL window functions sufficient** | ✅ Preferred | ❌ Unnecessary |
+| **Requires standard deviation** | ❌ Limited | ✅ Preferred |
+| **Multi-asset correlations** | ❌ Complex | ✅ Preferred |
+| **Custom pattern recognition** | ❌ Not feasible | ✅ Preferred |
+| **Historical backtesting queries** | ✅ Optimal | ❌ Inefficient |
+| **Sub-second latency required** | ❌ Limited to 1s | ✅ Preferred |
+| **Simple moving averages** | ✅ Preferred | ❌ Overkill |
+| **RSI, MACD, Stochastic** | ✅ Preferred | ❌ Overkill |
+| **ATR, Bollinger Bands** | ❌ Complex | ✅ Preferred |
+
+### Example Implementation Workflow
+
+1. **Start with TimescaleDB** for all basic indicators (SMA, EMA, RSI, MACD)
+2. **Add Flink processing** only for indicators requiring:
+   - Standard deviation calculations (Bollinger Bands)
+   - Complex state management (ATR with proper True Range)
+   - Multi-symbol analysis (correlations, relative strength)
+   - Custom trading logic and pattern recognition
+3. **Use CDC streaming** to combine both systems in the fusion layer
+4. **Optimize based on actual performance** metrics and trading requirements
+
+### Monitoring and Alerting
+
+- **TimescaleDB Metrics**: Continuous aggregate refresh lag, query performance, storage usage
+- **Flink Metrics**: Processing latency, checkpoint duration, state size, throughput
+- **CDC Health**: Replication lag, connection status, data consistency checks
+- **Indicator Accuracy**: Cross-validation between systems for overlapping calculations
+- **Trading Performance**: Signal generation latency, indicator update frequency

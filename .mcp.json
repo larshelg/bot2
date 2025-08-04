@@ -11,6 +11,22 @@
         "MARKDOWN_INCLUDE": "./docs/build/mcp/**/*.md",
         "HOIST_CONTEXT": "true"
       }
+    },
+    "flink-sql-gateway": {
+      "command": "node",
+      "args": [
+        "mcp/src/mcp_server.js"
+      ],
+      "env": {
+        "SQL_GATEWAY_API_BASE_URL": "http://localhost:8083"
+      }
+    },
+    "postgres": {
+      "command": "node",
+      "args": [
+        "/Users/larshelg/claude/bot/enhanced-postgres-mcp-server/dist/index.js",
+        "postgresql://postgres:postgres@localhost:5432/cursorDB"
+      ]
     }
   }
 }

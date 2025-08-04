@@ -1,0 +1,230 @@
+name: redpanda-quickstart
+networks:
+  redpanda_network:
+    driver: bridge
+volumes:
+  redpanda-fresh-data: null
+  postgres-data: null
+  flink-plugins: null
+  flink-lib: null
+services:
+  redpanda-0:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.2.12
+    container_name: redpanda-0
+    volumes:
+      - redpanda-fresh-data:/var/lib/redpanda/data
+    networks:
+      - redpanda_network
+    ports:
+      - 18081:18081
+      - 18082:18082
+      - 19092:19092
+      - 19644:9644
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "
+      # Start Redpanda
+      /entrypoint.sh redpanda start --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092 --advertise-kafka-addr internal://redpanda-0:9092,external://localhost:19092 --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082 --advertise-pandaproxy-addr internal://redpanda-0:8082,external://localhost:18082 --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081 --rpc-addr redpanda-0:33145 --advertise-rpc-addr redpanda-0:33145 --smp 1 --memory 1G --mode dev-container --default-log-level=debug &
+      
+      # Wait for Redpanda to become ready
+      until rpk cluster health | grep -q 'Healthy: true'; do
+        echo 'Waiting for Redpanda to be healthy...'
+        sleep 1
+      done
+      
+      # Create topics needed for the trading framework
+      echo 'Creating Kafka topics for the trading framework...'
+      
+      # Input topics
+      rpk topic create raw-1m-candles --partitions 3
+      rpk topic create instrument-metadata --partitions 1
+      rpk topic create candles-stream --partitions 3
+      
+      # Candle Aggregation Job outputs
+      rpk topic create aggregated-candles-5m --partitions 3
+      rpk topic create aggregated-candles-15m --partitions 3
+      rpk topic create aggregated-candles-1h --partitions 3
+      rpk topic create aggregated-candles-4h --partitions 3
+      rpk topic create aggregated-candles-1d --partitions 3
+      
+      # Basic Indicators Job outputs (per timeframe)
+      rpk topic create basic-indicators-1m --partitions 3
+      rpk topic create basic-indicators-5m --partitions 3
+      rpk topic create basic-indicators-15m --partitions 3
+      rpk topic create basic-indicators-1h --partitions 3
+      rpk topic create basic-indicators-4h --partitions 3
+      rpk topic create basic-indicators-1d --partitions 3
+      
+      # Complex Pattern Job outputs
+      rpk topic create complex-patterns --partitions 3
+      
+      # Signal Generation Job outputs
+      rpk topic create trading-signals --partitions 3
+      rpk topic create monitoring-metrics --partitions 1
+      
+      # Keep container running
+      tail -f /dev/null
+      "
+
+  console:
+    container_name: redpanda-console
+    image: docker.redpanda.com/redpandadata/console:v2.3.1
+    networks:
+      - redpanda_network
+    entrypoint: /bin/sh
+    command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml; /app/console'
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda-0:9092"]
+          schemaRegistry:
+            enabled: true
+            urls: ["http://redpanda-0:8081"]
+        redpanda:
+          adminApi:
+            enabled: true
+            urls: ["http://redpanda-0:9644"]
+    ports:
+      - 8080:8080
+    depends_on:
+      - redpanda-0
+
+  jobmanager:
+    image: flink:2.0.0
+    container_name: redpanda-quickstart-jobmanager-1
+    ports:
+      - "8081:8081"
+      - "8083:8083"  # SQL Gateway
+    networks:
+      - redpanda_network
+    volumes:
+      - flink-plugins:/opt/flink/plugins
+      - flink-lib:/opt/flink/lib
+      - ./flink-jars:/tmp/flink-jars  # Mount our custom-built JAR files
+      - ./data:/opt/flink/data  # Mount data directory for JSON files
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+        jobmanager.memory.process.size: 2048m
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "
+      echo 'Starting Flink 2.1.0 with custom-built JDBC connectors v4.0-SNAPSHOT...'
+      
+      # Create directories
+      mkdir -p /opt/flink/lib
+      
+      # Copy our custom-built JDBC connectors (v4.0-SNAPSHOT built from source!)
+      echo 'Installing custom-built Flink JDBC Connector v4.0-SNAPSHOT...'
+      cp /tmp/flink-jars/flink-connector-jdbc-core-4.0-SNAPSHOT.jar /opt/flink/lib/
+      cp /tmp/flink-jars/flink-connector-jdbc-postgres-4.0-SNAPSHOT.jar /opt/flink/lib/
+      
+      # Download PostgreSQL driver for the connector to use (latest version 42.7.7)
+      echo 'Downloading PostgreSQL JDBC driver v42.7.7...'
+      wget -P /opt/flink/lib/ https://jdbc.postgresql.org/download/postgresql-42.7.7.jar || { echo 'Failed to download PostgreSQL driver'; exit 1; }
+      
+      # Download Flink CDC PostgreSQL connector (v3.4.0 - latest stable with potential Flink 2.0 support)
+      echo 'Downloading Flink CDC PostgreSQL connector v3.4.0...'
+      wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-connector-postgres-cdc/3.4.0/flink-connector-postgres-cdc-3.4.0.jar || { echo 'Failed to download CDC connector'; exit 1; }
+      wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-postgres-cdc/3.4.0/flink-sql-connector-postgres-cdc-3.4.0.jar || { echo 'Failed to download SQL CDC connector'; exit 1; }
+      
+      # Download Flink Kafka connector v4.0.0 (compatible with Flink 2.x)
+      echo 'Downloading Flink Kafka connector v4.0.0 for Flink 2.x...'
+      wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/4.0.0-2.0/flink-sql-connector-kafka-4.0.0-2.0.jar || { echo 'Failed to download Kafka connector'; exit 1; }
+      
+      # Download Flink Parquet connector v2.0.0 (for Parquet file support)
+      echo 'Downloading Flink Parquet connector v2.0.0...'
+      wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-parquet/2.0.0/flink-parquet-2.0.0.jar || { echo 'Failed to download Parquet connector'; exit 1; }
+      
+      echo 'Flink 2.1.0 + JDBC Connector v4.0-SNAPSHOT + CDC Connector + Kafka Connector + Parquet Connector setup complete!'
+      ls -la /opt/flink/lib/*.jar
+      
+      # Start JobManager in background
+      /docker-entrypoint.sh jobmanager &
+      
+      # Wait for JobManager to be ready
+      sleep 15
+      
+      # Start SQL Gateway
+      /opt/flink/bin/sql-gateway.sh start -Dsql-gateway.endpoint.rest.address=0.0.0.0 -Dsql-gateway.endpoint.rest.port=8083
+      
+      # Keep container running
+      tail -f /dev/null
+      "
+
+  taskmanager:
+    image: flink:2.0.0
+    depends_on:
+      - jobmanager
+    networks:
+      - redpanda_network
+    volumes:
+      - flink-plugins:/opt/flink/plugins
+      - flink-lib:/opt/flink/lib
+      - ./flink-jars:/tmp/flink-jars  # Mount our custom-built JAR files
+      - ./data:/opt/flink/data  # Mount data directory for JSON files
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 8
+        taskmanager.memory.process.size: 4096m
+        taskmanager.memory.managed.size: 2048m
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      "
+      # Copy our custom-built JDBC connectors (v4.0-SNAPSHOT built from source!)
+      echo 'Installing custom-built Flink JDBC Connector v4.0-SNAPSHOT on TaskManager...'
+      mkdir -p /opt/flink/lib
+      cp /tmp/flink-jars/flink-connector-jdbc-core-4.0-SNAPSHOT.jar /opt/flink/lib/
+      cp /tmp/flink-jars/flink-connector-jdbc-postgres-4.0-SNAPSHOT.jar /opt/flink/lib/
+      
+      # Download PostgreSQL driver (latest version 42.7.7)
+      wget -P /opt/flink/lib/ https://jdbc.postgresql.org/download/postgresql-42.7.7.jar || { echo 'Failed to download PostgreSQL driver'; exit 1; }
+      
+      # Download Flink CDC PostgreSQL connector (v3.4.0 - latest stable with potential Flink 2.0 support)
+      echo 'Downloading Flink CDC PostgreSQL connector v3.4.0...'
+      wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-connector-postgres-cdc/3.4.0/flink-connector-postgres-cdc-3.4.0.jar || { echo 'Failed to download CDC connector'; exit 1; }
+      wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-postgres-cdc/3.4.0/flink-sql-connector-postgres-cdc-3.4.0.jar || { echo 'Failed to download SQL CDC connector'; exit 1; }
+      
+      # Download Flink Kafka connector v4.0.0 (compatible with Flink 2.x)
+      echo 'Downloading Flink Kafka connector v4.0.0 for Flink 2.x...'
+      wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/4.0.0-2.0/flink-sql-connector-kafka-4.0.0-2.0.jar || { echo 'Failed to download Kafka connector'; exit 1; }
+      
+      # Download Flink Parquet connector v2.0.0 (for Parquet file support)
+      echo 'Downloading Flink Parquet connector v2.0.0...'
+      wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-parquet/2.0.0/flink-parquet-2.0.0.jar || { echo 'Failed to download Parquet connector'; exit 1; }
+      
+      echo 'TaskManager JDBC + CDC + Kafka + Parquet Connector setup complete!'
+      
+      # Start TaskManager
+      /docker-entrypoint.sh taskmanager
+      "
+    scale: 1
+  
+  postgresdb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: mybot-postgresdb-1
+    ports:
+      - "5432:5432"
+    command: ["postgres", "-cshared_preload_libraries=pg_stat_statements,timescaledb", "-cwal_level=logical", "-cmax_wal_senders=10", "-cmax_replication_slots=10"]
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: "cursorDB"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - redpanda_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
